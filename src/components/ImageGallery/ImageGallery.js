@@ -26,5 +26,7 @@ export default ImageGallery;
 
 ImageGallery.propTypes = {
   imageClick: PropTypes.func.isRequired,
-  images: PropTypes.arrayOf(PropTypes.object.isRequired),
+  images: PropTypes.arrayOf(
+    PropTypes.shape({ id: PropTypes.number.isRequired })
+  ),
 };
