@@ -8,13 +8,9 @@ const modalRoot = document.querySelector('#modal');
 class Modal extends Component {
   static propTypes = {
     onClose: PropTypes.func.isRequired,
-    children: PropTypes.object.isRequired,
+    children: PropTypes.element.isRequired,
   };
   static defaultProps = { onClose: null, children: null };
-
-  state = {
-    idListener: null,
-  };
 
   componentDidMount() {
     document.addEventListener('keydown', this.checkButton);

@@ -20,18 +20,21 @@ class App extends Component {
     imageIdForModal: null,
     imageURLForModal: null,
     isOpen: false,
+    totalHits: 0,
   };
 
   async componentDidUpdate(prevProps, prevState) {
-    if (prevState.query !== this.state.query) {
+    if (
+      prevState.query !== this.state.query ||
+      prevState.page !== this.state.page
+    ) {
       this.setState(
-        { isLoading: true, pictures: [], page: 1, status: 'pending' },
+        {
+          isLoading: true,
+          status: 'pending',
+        },
         this.getImages
       );
-    }
-
-    if (this.state.page !== prevState.page && this.state.page !== 1) {
-      this.setState({ isLoading: true, status: 'pending' }, this.getImages);
     }
   }
 
@@ -47,6 +50,7 @@ class App extends Component {
   dataProccesing = response => {
     const { error, status } = this.state;
     const { hits: dataArray, totalHits } = response.data;
+    this.setState({ totalHits });
     if (error || status === 'rejected' || response.data.length === 0) {
       return;
     }
@@ -77,7 +81,7 @@ class App extends Component {
   };
 
   onSubmitForm = ({ value }) => {
-    this.setState({ query: value });
+    this.setState({ query: value, pictures: [], page: 1, totalHits: 0 });
   };
 
   showModal = id => {
@@ -103,6 +107,11 @@ class App extends Component {
     });
   };
 
+  isTotal = () => {
+    const { totalHits, pictures } = this.state;
+    return totalHits === pictures.length;
+  };
+
   render() {
     const { pictures, isOpen, imageURLForModal, isLoading, error, status } =
       this.state;
@@ -116,9 +125,13 @@ class App extends Component {
         <div className={s.ButtonSection}>
           {isLoading && <TailSpin color="#00BFFF" height={80} width={80} />}
         </div>
+
         <div className={s.ButtonSection}>
-          {!!pictures.length && <Button onClick={this.LoadMoreButton} />}{' '}
+          {!!pictures.length && !this.isTotal() && (
+            <Button onClick={this.LoadMoreButton} />
+          )}
         </div>
+
         {!pictures.length && status === 'fullfilled' && (
           <p>No images that approve your request</p>
         )}
