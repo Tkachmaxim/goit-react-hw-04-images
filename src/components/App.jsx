@@ -14,32 +14,56 @@ export default function App() {
   const [pictures, setPictures] = useState([]);
   const [query, setQuery] = useState('');
   const [isLoading, setIsloading] = useState(false);
-  const [status, setStatus] = useState(null);
+  const [status, setStatus] = useState('idle');
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
   const [imageIdForModal, setImageIdForModal] = useState(null);
-  const [imageURLForModal, setImageURLForModal] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
   const [totalHits, setToataHits] = useState(0);
 
   useEffect(() => {
-    if (!query) {
+    if (!query || status !== 'pending') {
       return;
     }
-    setIsloading(true);
-    setStatus('pending');
-    getImages();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, page]);
 
-  function getImages() {
-    try {
-      API(query, page).then(dataProccesing);
-    } catch (error) {
-      setError(error);
-      setStatus('rejected');
+    function getImages() {
+      try {
+        API(query, page).then(dataProccesing);
+      } catch (error) {
+        setError(error);
+        setStatus('rejected');
+      }
     }
-  }
+
+    const dataProccesing = response => {
+      const { hits: dataArray, totalHits } = response.data;
+      setToataHits(totalHits);
+      if (error || status === 'rejected' || response.data.length === 0) {
+        return;
+      }
+
+      if (response.status >= 400) {
+        setStatus('rejected');
+        return;
+      }
+
+      const newImagesObjects = dataArray.map(
+        ({ id, largeImageURL, webformatURL, tags }) => {
+          return { id, largeImageURL, webformatURL, tags };
+        }
+      );
+
+      setPictures(prev => {
+        return [...prev, ...newImagesObjects];
+      });
+      setToataHits(totalHits);
+      setIsloading(false);
+      setStatus('fullfilled');
+    };
+
+    setIsloading(true);
+    getImages();
+  }, [query, page, error, status]);
 
   useLayoutEffect(() => {
     window.scrollBy({
@@ -48,52 +72,25 @@ export default function App() {
     });
   }, [isLoading]);
 
-  const dataProccesing = response => {
-    const { hits: dataArray, totalHits } = response.data;
-    setToataHits(totalHits);
-    if (error || status === 'rejected' || response.data.length === 0) {
-      return;
-    }
-
-    if (response.status >= 400) {
-      setStatus('rejected');
-      return;
-    }
-
-    setStatus('fullfilled');
-
-    const newImagesObjects = dataArray.map(
-      ({ id, largeImageURL, webformatURL, tags }) => {
-        return { id, largeImageURL, webformatURL, tags };
-      }
-    );
-
-    setPictures(prev => {
-      return [...prev, ...newImagesObjects];
-    });
-    setToataHits(totalHits);
-    setIsloading(false);
-  };
-
   const onSubmitForm = ({ value }) => {
     setQuery(value);
     setPictures([]);
     setPage(1);
     setToataHits(0);
+    setStatus('pending');
   };
 
   const showModal = id => {
     setImageIdForModal(id);
-    getUrlImageForModal();
     toogleIsOpen();
   };
 
-  const getUrlImageForModal = () => {
-    const { largeImageURL } = pictures.filter(
-      ({ id }) => id === imageIdForModal
-    )[0];
-    setImageURLForModal(largeImageURL);
-  };
+  function getUrlImageForModal() {
+    const { largeImageURL } = pictures.find(
+      ({ id }) => id === Number(imageIdForModal)
+    );
+    return largeImageURL;
+  }
 
   const toogleIsOpen = () => {
     setIsOpen(prev => !prev);
@@ -101,6 +98,7 @@ export default function App() {
 
   const LoadMoreButton = () => {
     setPage(prev => prev + 1);
+    setStatus('pending');
   };
 
   const isTotal = () => {
@@ -127,7 +125,7 @@ export default function App() {
       {status === 'rejected' && <p>Some thing wrong {error} occured</p>}
       {isOpen && (
         <Modal onClose={toogleIsOpen}>
-          <img src={imageURLForModal} alt="" />
+          <img src={getUrlImageForModal()} alt="" />
         </Modal>
       )}
     </div>
