@@ -1,4 +1,3 @@
-import { Component } from 'react';
 import 'react-loader-spinner/dist/loader/css/react-spinner-loader.css';
 import { TailSpin } from 'react-loader-spinner';
 import API from 'services/api';
@@ -7,60 +6,61 @@ import ImageGallery from './ImageGallery';
 import Modal from './Modal';
 import Button from './Button';
 import s from './Button/Button.module.css';
+import { useState } from 'react';
+import { useEffect } from 'react';
+import { useLayoutEffect } from 'react';
 
-class App extends Component {
-  state = {
-    pictures: [],
-    query: '',
-    isLoading: false,
-    status: null,
-    error: null,
-    page: 1,
-    total: 0,
-    imageIdForModal: null,
-    imageURLForModal: null,
-    isOpen: false,
-    totalHits: 0,
-  };
+export default function App() {
+  const [pictures, setPictures] = useState([]);
+  const [query, setQuery] = useState('');
+  const [isLoading, setIsloading] = useState(false);
+  const [status, setStatus] = useState(null);
+  const [error, setError] = useState(null);
+  const [page, setPage] = useState(1);
+  const [imageIdForModal, setImageIdForModal] = useState(null);
+  const [imageURLForModal, setImageURLForModal] = useState(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [totalHits, setToataHits] = useState(0);
 
-  async componentDidUpdate(prevProps, prevState) {
-    if (
-      prevState.query !== this.state.query ||
-      prevState.page !== this.state.page
-    ) {
-      this.setState(
-        {
-          isLoading: true,
-          status: 'pending',
-        },
-        this.getImages
-      );
+  useEffect(() => {
+    if (!query) {
+      return;
+    }
+    setIsloading(true);
+    setStatus('pending');
+    getImages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, page]);
+
+  function getImages() {
+    try {
+      API(query, page).then(dataProccesing);
+    } catch (error) {
+      setError(error);
+      setStatus('rejected');
     }
   }
 
-  getImages = () => {
-    const { query, page } = this.state;
-    try {
-      API(query, page).then(this.dataProccesing);
-    } catch (error) {
-      this.setState({ error, status: 'rejected' });
-    }
-  };
+  useLayoutEffect(() => {
+    window.scrollBy({
+      top: 260,
+      behavior: 'smooth',
+    });
+  }, [isLoading]);
 
-  dataProccesing = response => {
-    const { error, status } = this.state;
+  const dataProccesing = response => {
     const { hits: dataArray, totalHits } = response.data;
-    this.setState({ totalHits });
+    setToataHits(totalHits);
     if (error || status === 'rejected' || response.data.length === 0) {
       return;
     }
 
     if (response.status >= 400) {
-      this.setState({ status: 'rejected' });
+      setStatus('rejected');
       return;
     }
 
-    this.setState({ status: 'fullfilled' });
+    setStatus('fullfilled');
 
     const newImagesObjects = dataArray.map(
       ({ id, largeImageURL, webformatURL, tags }) => {
@@ -68,82 +68,68 @@ class App extends Component {
       }
     );
 
-    this.setState(({ pictures }) => ({
-      pictures: [...pictures, ...newImagesObjects],
-      total: totalHits,
-      isLoading: false,
-    }));
-
-    window.scrollBy({
-      top: document.body.clientHeight,
-      behavior: 'smooth',
+    setPictures(prev => {
+      return [...prev, ...newImagesObjects];
     });
+    setToataHits(totalHits);
+    setIsloading(false);
   };
 
-  onSubmitForm = ({ value }) => {
-    this.setState({ query: value, pictures: [], page: 1, totalHits: 0 });
+  const onSubmitForm = ({ value }) => {
+    setQuery(value);
+    setPictures([]);
+    setPage(1);
+    setToataHits(0);
   };
 
-  showModal = id => {
-    this.setState({ imageIdForModal: Number(id) }, this.getUrlImageForModal);
-    this.toogleIsOpen();
+  const showModal = id => {
+    setImageIdForModal(id);
+    getUrlImageForModal();
+    toogleIsOpen();
   };
 
-  getUrlImageForModal = () => {
-    const { imageIdForModal, pictures } = this.state;
+  const getUrlImageForModal = () => {
     const { largeImageURL } = pictures.filter(
       ({ id }) => id === imageIdForModal
     )[0];
-    this.setState({ imageURLForModal: largeImageURL });
+    setImageURLForModal(largeImageURL);
   };
 
-  toogleIsOpen = () => {
-    this.setState(({ isOpen }) => ({ isOpen: !isOpen }));
+  const toogleIsOpen = () => {
+    setIsOpen(prev => !prev);
   };
 
-  LoadMoreButton = () => {
-    this.setState(({ page }) => {
-      return { page: page + 1 };
-    });
+  const LoadMoreButton = () => {
+    setPage(prev => prev + 1);
   };
 
-  isTotal = () => {
-    const { totalHits, pictures } = this.state;
+  const isTotal = () => {
     return totalHits === pictures.length;
   };
 
-  render() {
-    const { pictures, isOpen, imageURLForModal, isLoading, error, status } =
-      this.state;
-
-    return (
-      <div>
-        <Searchbar onSubmitForm={this.onSubmitForm} />
-        {pictures.length > 0 && (
-          <ImageGallery images={pictures} imageClick={this.showModal} />
-        )}
-        <div className={s.ButtonSection}>
-          {isLoading && <TailSpin color="#00BFFF" height={80} width={80} />}
-        </div>
-
-        <div className={s.ButtonSection}>
-          {!!pictures.length && !this.isTotal() && (
-            <Button onClick={this.LoadMoreButton} />
-          )}
-        </div>
-
-        {!pictures.length && status === 'fullfilled' && (
-          <p>No images that approve your request</p>
-        )}
-        {status === 'rejected' && <p>Some thing wrong {error} occured</p>}
-        {isOpen && (
-          <Modal onClose={this.toogleIsOpen}>
-            <img src={imageURLForModal} alt="" />
-          </Modal>
-        )}
+  return (
+    <div>
+      <Searchbar onSubmitForm={onSubmitForm} />
+      {pictures.length > 0 && (
+        <ImageGallery images={pictures} imageClick={showModal} />
+      )}
+      <div className={s.ButtonSection}>
+        {isLoading && <TailSpin color="#00BFFF" height={80} width={80} />}
       </div>
-    );
-  }
-}
 
-export default App;
+      <div className={s.ButtonSection}>
+        {!!pictures.length && !isTotal() && <Button onClick={LoadMoreButton} />}
+      </div>
+
+      {!pictures.length && status === 'fullfilled' && (
+        <p>No images that approve your request</p>
+      )}
+      {status === 'rejected' && <p>Some thing wrong {error} occured</p>}
+      {isOpen && (
+        <Modal onClose={toogleIsOpen}>
+          <img src={imageURLForModal} alt="" />
+        </Modal>
+      )}
+    </div>
+  );
+}
