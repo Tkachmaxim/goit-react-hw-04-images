@@ -26,43 +26,38 @@ export default function App() {
       return;
     }
 
-    function getImages() {
-      try {
-        API(query, page).then(dataProccesing);
-      } catch (error) {
+    API(query, page)
+      .then(response => {
+        const { hits: dataArray, totalHits } = response.data;
+        setToataHits(totalHits);
+        if (error || status === 'rejected' || response.data.length === 0) {
+          return;
+        }
+
+        if (response.status >= 400) {
+          setStatus('rejected');
+          return;
+        }
+
+        const newImagesObjects = dataArray.map(
+          ({ id, largeImageURL, webformatURL, tags }) => {
+            return { id, largeImageURL, webformatURL, tags };
+          }
+        );
+
+        setPictures(prev => {
+          return [...prev, ...newImagesObjects];
+        });
+        setToataHits(totalHits);
+        setIsloading(false);
+        setStatus('fullfilled');
+      })
+      .catch(error => {
         setError(error);
         setStatus('rejected');
-      }
-    }
-
-    const dataProccesing = response => {
-      const { hits: dataArray, totalHits } = response.data;
-      setToataHits(totalHits);
-      if (error || status === 'rejected' || response.data.length === 0) {
-        return;
-      }
-
-      if (response.status >= 400) {
-        setStatus('rejected');
-        return;
-      }
-
-      const newImagesObjects = dataArray.map(
-        ({ id, largeImageURL, webformatURL, tags }) => {
-          return { id, largeImageURL, webformatURL, tags };
-        }
-      );
-
-      setPictures(prev => {
-        return [...prev, ...newImagesObjects];
       });
-      setToataHits(totalHits);
-      setIsloading(false);
-      setStatus('fullfilled');
-    };
 
     setIsloading(true);
-    getImages();
   }, [query, page, error, status]);
 
   useLayoutEffect(() => {
